@@ -64,7 +64,7 @@ impl SCD30 {
         }
     }
 
-    pub fn set_measure_interval(&self, interval_seconds : u16)-> Result<(),Error> {
+    pub fn set_measure_interval(&mut self, interval_seconds : u16)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
         Ok(())
     }
@@ -74,47 +74,47 @@ impl SCD30 {
         Ok(res)
     }
 
-    pub fn enable_self_calibration(&self)-> Result<(),Error> {
+    pub fn enable_self_calibration(&mut self)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_AUTOMATIC_SELF_CALIBRATION, 1)?;
         Ok(())
     }
 
-    pub fn disable_self_calibration(&self)-> Result<(),Error> {
+    pub fn disable_self_calibration(&mut self)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_AUTOMATIC_SELF_CALIBRATION, 0)?;
         Ok(())
     }
 
-    pub fn set_altitude_compensation(&self, altitude_mum : u16)-> Result<(),Error> {
+    pub fn set_altitude_compensation(&mut self, altitude_mum : u16)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_SET_ALTITUDE_COMPENSATION, altitude_mum)?;
         Ok(())
     }
 
-    pub fn set_forced_recalibration(&self, real_co2_ppm : u16)-> Result<(),Error> {
+    pub fn set_forced_recalibration(&mut self, real_co2_ppm : u16)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
         Ok(())
     }
 
-    pub fn set_temperature_offset(&self, temp : f32)-> Result<(),Error> {
+    pub fn set_temperature_offset(&mut self, temp : f32)-> Result<(),Error> {
         let ticks = (temp*100f32) as u16;
         let _res = self.send_command_with_args(COMMAND_SET_TEMPERATURE_OFFSET, ticks)?;
         Ok(())
     }
 
-    pub fn start_with_alt_comp(&self, pressure_mbar : u16)-> Result<(),Error> {
+    pub fn start_with_alt_comp(&mut self, pressure_mbar : u16)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
         Ok(())
     }
-    pub fn start(&self)-> Result<(),Error> {
+    pub fn start(&mut self)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_START_CONTINUOUS_MEASUREMENT, 0)?;
         Ok(())
     }
 
-    pub fn stop(&self)-> Result<(),Error> {
+    pub fn stop(&mut self)-> Result<(),Error> {
         let _res = self.send_command(COMMAND_STOP_CONTINUOUS_MEASUREMENT)?;
         Ok(())
     }
 
-    pub fn soft_reset(&self)-> Result<(),Error> {
+    pub fn soft_reset(&mut self)-> Result<(),Error> {
         let _res = self.send_command(COMMAND_RESET)?;
         Ok(())
     }
@@ -129,17 +129,18 @@ impl SCD30 {
         }
     }
 
-    fn send_command(&self, command: u16) -> Result<(),Error> {
-        let (cmd, buf) = prepare_command(command);
-        match self.i2c.block_write(cmd,&buf) {
+    fn send_command(&mut self, command: u16) -> Result<(),Error> {
+        let buf = prepare_cmd(command);
+
+        match self.i2c.write(&buf) {
             Err(e) => Err(Error::from(e)),
             _ => Ok(())
         }
     }
 
-    fn send_command_with_args(&self, command: u16, arguments: u16) -> Result<(),Error> {
-        let (cmd, buf) = prepare_command_with_args(command, arguments);
-        match self.i2c.block_write(cmd,&buf) {
+    fn send_command_with_args(&mut self, command: u16, arguments: u16) -> Result<(),Error> {
+        let buf = prepare_cmd_with_args(command, arguments);
+        match self.i2c.write(&buf) {
             Err(e) => Err(Error::from(e)),
             _ => Ok(())
         }
@@ -147,21 +148,22 @@ impl SCD30 {
 
 
     fn read_u16(&mut self, command: u16) -> Result<u16,Error>{
-        self.send_command(command)?;
-
-        let mut buf = [0u8;2];
-        let res = self.i2c.read(&mut buf)?;
-        if res == 0 {
-            return Err( Error::NoData("No data read".to_string()) )
+        let snd_buf = prepare_cmd(command);
+        let mut rcv_buf = [0u8;2];
+        match self.i2c.write_read(&snd_buf, &mut rcv_buf) {
+            Err(e) => Err( Error::NoData("No data read".to_string()) ),
+            _ => {}
         }
         let response : u16 = (buf[0] as u16) << 8 + buf[1] as u16;
         Ok(response)
     }
 
     fn read_data(&mut self, command : u16, out_buf : &mut [u8]) -> Result<usize,Error>{
-        self.send_command(command)?;
-
-        let res = self.i2c.read(out_buf)?;
+        let snd_buf = prepare_cmd(command);
+        match self.i2c.write_read(&snd_buf,out_buf) {
+            Err(e) => Err( Error::NoData("No data read".to_string()) ),
+            _ => {}
+        }
 
         Ok(res)
     }
@@ -197,6 +199,7 @@ pub fn prepare_command_with_args(command: u16, arguments: u16) -> (u8, Vec<u8>) 
 
 pub fn prepare_command_with_buf(command: u16, buf: &[u8], with_crc: bool) -> (u8, Vec<u8>) {
     let mut res_buf = Vec::<u8>::with_capacity(buf.len()+2);
+
     res_buf.push((command & 0xff) as u8);
     res_buf.extend_from_slice( buf);
 
@@ -204,6 +207,31 @@ pub fn prepare_command_with_buf(command: u16, buf: &[u8], with_crc: bool) -> (u8
         res_buf.push(calculate_crc8(buf));
     }
     ((command >> 8) as u8, res_buf)
+}
+
+pub fn prepare_cmd(command: u16) -> Vec<u8> {
+    let mut res_buf = Vec::<u8>::with_capacity(2);
+    res_buf.push((command >> 8) as u8);
+    res_buf.push((command & 0xff) as u8);
+    res_buf
+}
+
+
+pub fn prepare_cmd_with_args(command: u16, arguments: u16) -> Vec<u8> {
+    let arg_buffer = [(arguments >> 8) as u8, (arguments & 0xff) as u8];
+    prepare_cmd_with_buf(command, &arg_buffer, true)
+}
+
+pub fn prepare_cmd_with_buf(command: u16, buf: &[u8], with_crc: bool) -> Vec<u8> {
+    let mut res_buf = Vec::<u8>::with_capacity(buf.len()+3);
+    res_buf.push((command >> 8) as u8);
+    res_buf.push((command & 0xff) as u8);
+    res_buf.extend_from_slice( buf);
+
+    if with_crc && buf.len() > 0 {
+        res_buf.push(calculate_crc8(buf));
+    }
+    res_buf
 }
 
 
@@ -224,3 +252,4 @@ pub fn calculate_crc8(data: &[u8]) -> u8 {
 
 #[cfg(test)]
 mod tests;
+
