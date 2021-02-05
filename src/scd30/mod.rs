@@ -64,6 +64,17 @@ impl SCD30 {
         }
     }
 
+    pub fn get_bus_speed(&mut self) -> Result<u32, Error>{
+        match  self.i2c.clock_speed(){
+            Ok(s) => {
+                Ok(s)
+            }
+            Err(e) => {
+                Err( Error::from(e))
+            }
+        }
+    }
+
     pub fn set_measure_interval(&mut self, interval_seconds : u16)-> Result<(),Error> {
         let _res = self.send_command_with_args(COMMAND_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
         Ok(())
@@ -133,7 +144,9 @@ impl SCD30 {
         let buf = prepare_cmd(command);
 
         match self.i2c.write(&buf) {
-            Err(e) => Err(Error::from(e)),
+            Err(e) => {
+                Err(Error::from(e))
+            },
             _ => Ok(())
         }
     }
@@ -141,31 +154,44 @@ impl SCD30 {
     fn send_command_with_args(&mut self, command: u16, arguments: u16) -> Result<(),Error> {
         let buf = prepare_cmd_with_args(command, arguments);
         match self.i2c.write(&buf) {
-            Err(e) => Err(Error::from(e)),
+            Err(e) => {
+                Err(Error::from(e))
+            },
             _ => Ok(())
         }
     }
 
 
     fn read_u16(&mut self, command: u16) -> Result<u16,Error>{
-        let snd_buf = prepare_cmd(command);
+        self.send_command(command)?;
+
         let mut rcv_buf = [0u8;2];
-        match self.i2c.write_read(&snd_buf, &mut rcv_buf) {
-            Err(e) => Err( Error::NoData("No data read".to_string()) ),
-            _ => {}
+
+        let res = self.i2c.read(&mut rcv_buf);
+        match res {
+            Err(e) => {
+                return Err( Error::NoData("No data read".to_string()));
+            },
+            Ok(s) => {
+                if s != 2 {
+                    return Err( Error::NoData("Invalid data count read".to_string()));
+                }
+            },
         }
-        let response : u16 = (buf[0] as u16) << 8 + buf[1] as u16;
+        let response : u16 = (rcv_buf[0] as u16) << 8 + rcv_buf[1] as u16;
         Ok(response)
     }
 
     fn read_data(&mut self, command : u16, out_buf : &mut [u8]) -> Result<usize,Error>{
         let snd_buf = prepare_cmd(command);
         match self.i2c.write_read(&snd_buf,out_buf) {
-            Err(e) => Err( Error::NoData("No data read".to_string()) ),
+            Err(e) => {
+                return Err( Error::NoData("No data read".to_string()) );
+            }
             _ => {}
         }
 
-        Ok(res)
+        Ok(0)
     }
 
 }
@@ -186,28 +212,6 @@ Reflect Output: false
 
 */
 
-pub fn prepare_command(command: u16) -> (u8, Vec<u8>) {
-    let buf = vec![ (command & 0xff) as u8];
-    ((command >> 8) as u8, buf)
-}
-
-
-pub fn prepare_command_with_args(command: u16, arguments: u16) -> (u8, Vec<u8>) {
-    let arg_buffer = [(arguments >> 8) as u8, (arguments & 0xff) as u8];
-    prepare_command_with_buf(command, &arg_buffer, true)
-}
-
-pub fn prepare_command_with_buf(command: u16, buf: &[u8], with_crc: bool) -> (u8, Vec<u8>) {
-    let mut res_buf = Vec::<u8>::with_capacity(buf.len()+2);
-
-    res_buf.push((command & 0xff) as u8);
-    res_buf.extend_from_slice( buf);
-
-    if with_crc && buf.len() > 0 {
-        res_buf.push(calculate_crc8(buf));
-    }
-    ((command >> 8) as u8, res_buf)
-}
 
 pub fn prepare_cmd(command: u16) -> Vec<u8> {
     let mut res_buf = Vec::<u8>::with_capacity(2);
