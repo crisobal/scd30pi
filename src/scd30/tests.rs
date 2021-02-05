@@ -1,4 +1,4 @@
-use crate::scd30::calculate_crc8;
+use crate::scd30::{calculate_crc8, prepare_command, prepare_command_with_buf, prepare_command_with_args};
 
 #[test]
 fn test_build_crc() {
@@ -40,4 +40,62 @@ fn test_build_crc_3() {
 fn test_build_crc_4() {
     let bytes: Vec<u8> = vec![17, 10 ,19 , 73];
     assert_eq!(0x5c, calculate_crc8( &bytes));
+}
+
+
+#[test]
+fn test_create_command_cmd_only_1() {
+    let (cmd, buf) = prepare_command(0x100a);
+    assert_eq!(0x10, cmd);
+    assert_eq!(0x0a, buf[0]);
+    assert_eq!(1, buf.len())
+}
+
+#[test]
+fn test_create_command_cmd_only_2() {
+    let (cmd, buf) = prepare_command_with_buf(0x100a, &[], false);
+    assert_eq!(0x10, cmd);
+    assert_eq!(0x0a, buf[0]);
+    assert_eq!(1, buf.len())
+}
+
+
+#[test]
+fn test_create_command_with_data() {
+    let in_buf = [ 0x17,0x10,0x19,0x73];
+    let (cmd, buf) = prepare_command_with_buf(0x100a, &in_buf, false);
+    assert_eq!(0x10, cmd);
+    assert_eq!(0x0a, buf[0]);
+    assert_eq!(0x17, buf[1]);
+    assert_eq!(0x10, buf[2]);
+    assert_eq!(0x19, buf[3]);
+    assert_eq!(0x73, buf[4]);
+    assert_eq!(5, buf.len());
+}
+
+#[test]
+fn test_create_command_with_data_and_crc() {
+    let in_buf = [ 0x17,0x10,0x19,0x73];
+    let (cmd, buf) = prepare_command_with_buf(0x100a, &in_buf, true);
+    assert_eq!(0x10, cmd);
+    assert_eq!(0x0a, buf[0]);
+    assert_eq!(0x17, buf[1]);
+    assert_eq!(0x10, buf[2]);
+    assert_eq!(0x19, buf[3]);
+    assert_eq!(0x73, buf[4]);
+    assert_eq!(0xdf, buf[5]);
+    assert_eq!(6, buf.len());
+}
+
+
+#[test]
+fn test_create_command_with_args() {
+    let args : u16 = 0x1234;
+    let (cmd, buf) =prepare_command_with_args(0x100a,args);
+    assert_eq!(0x10, cmd);
+    assert_eq!(0x0a, buf[0]);
+    assert_eq!(0x12, buf[1]);
+    assert_eq!(0x34, buf[2]);
+    assert_eq!(0x37, buf[3]);
+    assert_eq!(4, buf.len());
 }
