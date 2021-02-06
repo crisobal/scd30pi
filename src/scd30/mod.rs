@@ -13,6 +13,7 @@ const COMMAND_SET_FORCED_RECALIBRATION_FACTOR: u16 = 0x5204;
 const COMMAND_SET_TEMPERATURE_OFFSET: u16 = 0x5403;
 const COMMAND_SET_ALTITUDE_COMPENSATION: u16 = 0x5102;
 const COMMAND_RESET: u16 = 0xD304;
+const COMMAND_GET_FIRMWARE_VERSION : u16 = 0xD100;
 
 #[derive(Debug)]
 pub enum Error {
@@ -74,8 +75,13 @@ impl SCD30 {
         Ok(())
     }
 
+    pub fn read_firmware_version(&mut self)-> Result<String, Error> {
+        let res = self.read_u16_with_crc(COMMAND_GET_FIRMWARE_VERSION)?;
+        Ok(format!("{}.{}", (res >>8), (res & 0xff)))
+    }
+
     pub fn read_measure_interval(&mut self) -> Result<u16, Error> {
-        let res = self.read_u16(COMMAND_SET_MEASUREMENT_INTERVAL)?;
+        let res = self.read_u16_with_crc(COMMAND_SET_MEASUREMENT_INTERVAL)?;
         Ok(res)
     }
 
@@ -146,7 +152,7 @@ impl SCD30 {
     }
 
     pub fn data_available(&mut self) -> Result<bool, Error> {
-        let res = self.read_u16(COMMAND_GET_DATA_READY)?;
+        let res = self.read_u16_with_crc(COMMAND_GET_DATA_READY)?;
         match res {
             1 => Ok(true),
             _ => Ok(false),
@@ -190,6 +196,32 @@ impl SCD30 {
         }
         let response: u16 = ((rcv_buf[0] as u16) << 8) as u16 + rcv_buf[1] as u16;
         println!("Read {} raw {:x?}", response, rcv_buf);
+        Ok(response)
+    }
+
+    fn read_u16_with_crc(&mut self, command: u16) -> Result<u16, Error> {
+        self.send_command(command)?;
+
+        thread::sleep(time::Duration::from_millis(5));
+
+        let mut rcv_buf = [0u8; 3];
+
+        let res = self.i2c.read(&mut rcv_buf);
+        match res {
+            Err(e) => {
+                return Err(Error::NoData("No data read".to_string()));
+            }
+            Ok(s) => {
+                if s != 3 {
+                    return Err(Error::NoData("Invalid data count read".to_string()));
+                }
+            }
+        }
+        if calculate_crc8(&rcv_buf) != 0 {
+            return Err(Error::CrcError("Invalid in result word".to_string()));
+        }
+        let response: u16 = ((rcv_buf[0] as u16) << 8) as u16 + rcv_buf[1] as u16;
+        println!("Read {} raw {:#x?}", response, rcv_buf);
         Ok(response)
     }
 
