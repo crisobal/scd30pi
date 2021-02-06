@@ -1,21 +1,29 @@
 
 use airquality::scd30::SCD30;
+use std::{thread, time};
 
 
 fn main() {
     let mut sensor = SCD30::new().unwrap();
-    //sensor.stop();
-    sensor.set_measure_interval(10000);
+    let speed = sensor.get_bus_speed().unwrap();
+    println!("bus Speed: {}", speed);
+
+
     sensor.start();
+    sensor.set_measure_interval(10);
+    sensor.read_measure();
+
+
     let iv = sensor.read_measure_interval().unwrap();
     println!("Hello, world! {}", iv);
 
-    if(sensor.data_available().unwrap()){
+    if sensor.data_available().unwrap() == true {
         println!("Data avail");
     } else {
         println!("No avail");
     }
-    //sensor.stop().unwrap()
+    sensor.stop().unwrap();
+
     let speed = sensor.get_bus_speed().unwrap();
     println!("bus Speed: {}", speed);
 }

@@ -55,6 +55,17 @@ fn test_create_cmd_with_args() {
     assert_eq!(5, buf.len());
 }
 
+#[test]
+fn test_create_cmd_with_args_set_intervall_2s() {
+    let args : u16 = 2;
+    let buf = prepare_cmd_with_args(0x4600,args);
+    assert_eq!(0x46, buf[0]);
+    assert_eq!(0x00, buf[1]);
+    assert_eq!(0x00, buf[2]);
+    assert_eq!(0x02, buf[3]);
+    assert_eq!(0xE3, buf[4]);
+    assert_eq!(5, buf.len());
+}
 
 #[test]
 fn test_create_cmd_with_data_and_crc() {
