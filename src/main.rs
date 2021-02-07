@@ -9,14 +9,14 @@ fn main() {
     println!("bus Speed: {}", speed);
 
 
-    sensor.start();
-    sensor.set_measure_interval(2);
+    sensor.start().unwrap();
+    sensor.set_measure_interval(2).unwrap();
 
 
     let version = sensor.read_firmware_version().unwrap();
     println!("Current firmware version {}", version);
 
-    sensor.read_measure();
+    sensor.read_measure().unwrap();
 
     thread::sleep(time::Duration::from_millis(3000));
 

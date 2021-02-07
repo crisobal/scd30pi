@@ -1,6 +1,8 @@
 use rppal::i2c::I2c;
 
+use std::f32::NAN;
 use std::result::Result;
+use std::time::Instant;
 use std::{error, fmt, thread, time};
 
 const COMMAND_START_CONTINUOUS_MEASUREMENT: u16 = 0x0010;
@@ -13,7 +15,7 @@ const COMMAND_SET_FORCED_RECALIBRATION_FACTOR: u16 = 0x5204;
 const COMMAND_SET_TEMPERATURE_OFFSET: u16 = 0x5403;
 const COMMAND_SET_ALTITUDE_COMPENSATION: u16 = 0x5102;
 const COMMAND_RESET: u16 = 0xD304;
-const COMMAND_GET_FIRMWARE_VERSION : u16 = 0xD100;
+const COMMAND_GET_FIRMWARE_VERSION: u16 = 0xD100;
 
 #[derive(Debug)]
 pub enum Error {
@@ -43,7 +45,12 @@ impl From<rppal::i2c::Error> for Error {
 }
 
 pub struct SCD30 {
+    interval_in_s: u16,
     i2c: I2c,
+    temperature: f32,
+    humidity: f32,
+    co2: f32,
+    last_read_time: Option<Instant>,
 }
 
 impl SCD30 {
@@ -56,7 +63,19 @@ impl SCD30 {
         match res {
             Ok(mut an_i2c) => match an_i2c.set_slave_address(slave_address) {
                 Err(e) => Err(Error::from(e)),
-                Ok(_) => Ok(SCD30 { i2c: an_i2c }),
+                Ok(_) => {
+                    let mut sensor = SCD30 {
+                        i2c: an_i2c,
+                        interval_in_s: 2,
+                        temperature: NAN,
+                        humidity: NAN,
+                        co2: NAN,
+                        last_read_time: None,
+                    };
+                    let _ = sensor.read_measure_interval()?;
+
+                    Ok(sensor)
+                }
             },
             Err(e) => Err(Error::from(e)),
         }
@@ -70,37 +89,64 @@ impl SCD30 {
     }
 
     pub fn set_measure_interval(&mut self, interval_seconds: u16) -> Result<(), Error> {
+        self.interval_in_s = interval_seconds;
         let _res =
             self.send_command_with_args(COMMAND_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
         Ok(())
     }
 
-    pub fn read_firmware_version(&mut self)-> Result<String, Error> {
+    pub fn read_firmware_version(&mut self) -> Result<String, Error> {
         let res = self.read_u16_with_crc(COMMAND_GET_FIRMWARE_VERSION)?;
-        Ok(format!("{}.{}", (res >>8), (res & 0xff)))
+        Ok(format!("{}.{}", (res >> 8), (res & 0xff)))
     }
 
     pub fn read_measure_interval(&mut self) -> Result<u16, Error> {
         let res = self.read_u16_with_crc(COMMAND_SET_MEASUREMENT_INTERVAL)?;
+        self.interval_in_s = res;
         Ok(res)
     }
 
     pub fn read_measure(&mut self) -> Result<u16, Error> {
-        let mut buf = [0u8; 18];
-        let res = self.read_data(COMMAND_READ_MEASUREMENT, &mut buf)?;
-        if res != 18 {
-            return Err(Error::NoData("Expected 18 bytes of data".to_string()));
+        if self.last_read_time == None
+            || self.last_read_time.unwrap().elapsed().as_secs() > self.interval_in_s as u64
+        {
+            if self.data_available()? {
+                let mut buf = [0u8; 18];
+                let res = self.read_data(COMMAND_READ_MEASUREMENT, &mut buf)?;
+                if res != 18 {
+                    return Err(Error::NoData("Expected 18 bytes of data".to_string()));
+                }
+                println!("Got {} bytes of measure data: {:x?}", res, buf);
+
+                self.co2 = decode_measure_value_to_u32(&buf[0..6])?;
+                self.temperature = decode_measure_value_to_u32(&buf[6..12])?;
+                self.humidity = decode_measure_value_to_u32(&buf[12..18])?;
+
+                println!(
+                    "co2 = {:.0} ppm, temp = {:.2} °C, humidity = {:.0} %",
+                    self.co2, self.temperature, self.humidity
+                );
+
+                self.last_read_time = Some(Instant::now());
+                return Ok(res as u16);
+            }
         }
-        println!("Got {} bytes of measure data: {:x?}", res, buf);
+        Ok(0)
+    }
 
-        let co2 = decode_measure_value_to_u32(&buf[0..6])?;
-        let temp = decode_measure_value_to_u32(&buf[6..12])?;
-        let humidity = decode_measure_value_to_u32(&buf[12..18])?;
+    pub fn temperature(&mut self) -> Result<f32, Error> {
+        self.read_measure()?;
+        Ok(self.temperature)
+    }
 
-        println!("co2 = {:.0} ppm, temp = {:.2} °C, humidity = {:.0} %", co2,temp,humidity);
+    pub fn humidity(&mut self) -> Result<f32, Error> {
+        self.read_measure()?;
+        Ok(self.humidity)
+    }
 
-
-        Ok(res as u16)
+    pub fn co2(&mut self) -> Result<f32, Error> {
+        self.read_measure()?;
+        Ok(self.co2)
     }
 
     pub fn enable_self_calibration(&mut self) -> Result<(), Error> {
@@ -176,6 +222,7 @@ impl SCD30 {
         }
     }
 
+    #[allow(dead_code)]
     fn read_u16(&mut self, command: u16) -> Result<u16, Error> {
         self.send_command(command)?;
 
@@ -185,7 +232,7 @@ impl SCD30 {
 
         let res = self.i2c.read(&mut rcv_buf);
         match res {
-            Err(e) => {
+            Err(_) => {
                 return Err(Error::NoData("No data read".to_string()));
             }
             Ok(s) => {
@@ -208,7 +255,7 @@ impl SCD30 {
 
         let res = self.i2c.read(&mut rcv_buf);
         match res {
-            Err(e) => {
+            Err(_) => {
                 return Err(Error::NoData("No data read".to_string()));
             }
             Ok(s) => {
@@ -233,7 +280,7 @@ impl SCD30 {
         let res = self.i2c.read(out_buf);
 
         match res {
-            Err(e) => Err(Error::NoData("No data read".to_string())),
+            Err(_) => Err(Error::NoData("No data read".to_string())),
             Ok(s) => Ok(s),
         }
     }
@@ -281,12 +328,12 @@ pub fn prepare_cmd_with_buf(command: u16, buf: &[u8], with_crc: bool) -> Vec<u8>
 
 pub fn decode_measure_value_to_u32(data: &[u8]) -> Result<f32, Error> {
     if calculate_crc8(&data[0..3]) == 0 && calculate_crc8(&data[3..6]) == 0 {
-        let mut val : u32 = data[0] as u32;
+        let mut val: u32 = data[0] as u32;
         val <<= 8;
         val |= data[1] as u32;
-        val <<=8;
+        val <<= 8;
         val |= data[3] as u32;
-        val <<=8;
+        val <<= 8;
         val |= data[4] as u32;
         Ok(f32::from_bits(val))
     } else {
