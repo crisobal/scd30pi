@@ -16,20 +16,15 @@ fn main() {
     let version = sensor.read_firmware_version().unwrap();
     println!("Current firmware version {}", version);
 
-    sensor.read_measure().unwrap();
-
     thread::sleep(time::Duration::from_millis(3000));
 
-    let iv = sensor.read_measure_interval().unwrap();
-    println!("Current read intervall {}", iv);
+    let temperature = sensor.temperature().unwrap();
+    let co2 = sensor.co2().unwrap();
+    let humidity = sensor.humidity().unwrap();
 
-    if sensor.data_available().unwrap() == true {
-        println!("Data avail");
-    } else {
-        println!("No avail");
-    }
-    //sensor.stop().unwrap();
+    println!(
+        "co2 = {:.0} ppm, temp = {:.2} °C, humidity = {:.0} %",
+       co2, temperature, humidity
+    );
 
-    let speed = sensor.get_bus_speed().unwrap();
-    println!("bus Speed: {}", speed);
 }
