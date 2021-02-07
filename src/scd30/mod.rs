@@ -92,7 +92,7 @@ impl SCD30 {
     pub fn set_measure_interval(&mut self, interval_seconds: u16) -> Result<(), Error> {
         self.interval_in_s = interval_seconds;
         let _res =
-            self.send_CMD_with_args(CMD_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
+            self.send_cmd_with_args(CMD_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
         Ok(())
     }
 
@@ -151,50 +151,50 @@ impl SCD30 {
     }
 
     pub fn enable_self_calibration(&mut self) -> Result<(), Error> {
-        let _res = self.send_CMD_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 1)?;
+        let _res = self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 1)?;
         Ok(())
     }
 
     pub fn disable_self_calibration(&mut self) -> Result<(), Error> {
-        let _res = self.send_CMD_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 0)?;
+        let _res = self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 0)?;
         Ok(())
     }
 
     pub fn set_altitude_compensation(&mut self, altitude_mum: u16) -> Result<(), Error> {
-        let _res = self.send_CMD_with_args(CMD_SET_ALTITUDE_COMPENSATION, altitude_mum)?;
+        let _res = self.send_cmd_with_args(CMD_SET_ALTITUDE_COMPENSATION, altitude_mum)?;
         Ok(())
     }
 
     pub fn set_forced_recalibration(&mut self, real_co2_ppm: u16) -> Result<(), Error> {
         let _res =
-            self.send_CMD_with_args(CMD_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
+            self.send_cmd_with_args(CMD_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
         Ok(())
     }
 
     pub fn set_temperature_offset(&mut self, temp: f32) -> Result<(), Error> {
         let ticks = (temp * 100f32) as u16;
-        let _res = self.send_CMD_with_args(CMD_SET_TEMPERATURE_OFFSET, ticks)?;
+        let _res = self.send_cmd_with_args(CMD_SET_TEMPERATURE_OFFSET, ticks)?;
         Ok(())
     }
 
     pub fn start_with_alt_comp(&mut self, pressure_mbar: u16) -> Result<(), Error> {
         let _res =
-            self.send_CMD_with_args(CMD_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
+            self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
         Ok(())
     }
 
     pub fn start(&mut self) -> Result<(), Error> {
-        let _res = self.send_CMD_with_args(CMD_START_CONTINUOUS_MEASUREMENT, 0)?;
+        let _res = self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, 0)?;
         Ok(())
     }
 
     pub fn stop(&mut self) -> Result<(), Error> {
-        let _res = self.send_command(CMD_STOP_CONTINUOUS_MEASUREMENT)?;
+        let _res = self.send_cmd(CMD_STOP_CONTINUOUS_MEASUREMENT)?;
         Ok(())
     }
 
     pub fn soft_reset(&mut self) -> Result<(), Error> {
-        let _res = self.send_command(CMD_RESET)?;
+        let _res = self.send_cmd(CMD_RESET)?;
         Ok(())
     }
 
@@ -206,7 +206,7 @@ impl SCD30 {
         }
     }
 
-    fn send_command(&mut self, command: u16) -> Result<(), Error> {
+    fn send_cmd(&mut self, command: u16) -> Result<(), Error> {
         let buf = prepare_cmd(command);
 
         match self.i2c.write(&buf) {
@@ -215,7 +215,7 @@ impl SCD30 {
         }
     }
 
-    fn send_CMD_with_args(&mut self, command: u16, arguments: u16) -> Result<(), Error> {
+    fn send_cmd_with_args(&mut self, command: u16, arguments: u16) -> Result<(), Error> {
         let buf = prepare_cmd_with_args(command, arguments);
         match self.i2c.write(&buf) {
             Err(e) => Err(Error::from(e)),
@@ -225,7 +225,7 @@ impl SCD30 {
 
     #[allow(dead_code)]
     fn read_u16(&mut self, command: u16) -> Result<u16, Error> {
-        self.send_command(command)?;
+        self.send_cmd(command)?;
 
         thread::sleep(time::Duration::from_millis(5));
 
@@ -248,7 +248,7 @@ impl SCD30 {
     }
 
     fn read_u16_with_crc(&mut self, command: u16) -> Result<u16, Error> {
-        self.send_command(command)?;
+        self.send_cmd(command)?;
 
         thread::sleep(time::Duration::from_millis(5));
 
@@ -274,7 +274,7 @@ impl SCD30 {
     }
 
     fn read_data(&mut self, command: u16, out_buf: &mut [u8]) -> Result<usize, Error> {
-        self.send_command(command)?;
+        self.send_cmd(command)?;
 
         thread::sleep(time::Duration::from_millis(5));
 
