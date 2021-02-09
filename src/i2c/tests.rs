@@ -1,4 +1,4 @@
-use crate::scd30::{calculate_crc8,  prepare_cmd_with_args, prepare_cmd_with_buf, prepare_cmd};
+use crate::i2c::{calculate_crc8,  prepare_cmd_with_args, prepare_cmd_with_buf, prepare_cmd};
 
 #[test]
 fn test_build_crc() {

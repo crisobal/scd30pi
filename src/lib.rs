@@ -1,3 +1,3 @@
 
-pub mod scd30;
+pub mod i2c;
 

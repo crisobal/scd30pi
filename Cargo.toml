@@ -1,5 +1,5 @@
 [package]
-name = "airquality"
+name = "scd30"
 version = "0.1.0"
 authors = ["Crispin Tschirky <crispin@tschirky.ch"]
 edition = "2018"
