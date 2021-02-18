@@ -1,10 +1,33 @@
-use rppal::i2c::I2c;
+/*
+MIT License
 
+Copyright (c) 2021 Crispin Tschirky <ct@fhr.ch>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ */
+
+use log::{debug, trace};
+use rppal::i2c::I2c;
 use std::f32::NAN;
 use std::result::Result;
 use std::time::Instant;
 use std::{error, fmt, thread, time};
-use log::{trace,debug};
 
 const CMD_START_CONTINUOUS_MEASUREMENT: u16 = 0x0010;
 const CMD_STOP_CONTINUOUS_MEASUREMENT: u16 = 0x0104;
@@ -91,8 +114,7 @@ impl SCD30 {
 
     pub fn set_measure_interval(&mut self, interval_seconds: u16) -> Result<(), Error> {
         self.interval_in_s = interval_seconds;
-        let _res =
-            self.send_cmd_with_args(CMD_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
+        let _res = self.send_cmd_with_args(CMD_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
         Ok(())
     }
 
@@ -166,8 +188,7 @@ impl SCD30 {
     }
 
     pub fn set_forced_recalibration(&mut self, real_co2_ppm: u16) -> Result<(), Error> {
-        let _res =
-            self.send_cmd_with_args(CMD_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
+        let _res = self.send_cmd_with_args(CMD_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
         Ok(())
     }
 
@@ -178,8 +199,7 @@ impl SCD30 {
     }
 
     pub fn start_with_alt_comp(&mut self, pressure_mbar: u16) -> Result<(), Error> {
-        let _res =
-            self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
+        let _res = self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
         Ok(())
     }
 

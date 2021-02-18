@@ -1,7 +1,5 @@
-
 use scd30::i2c::SCD30;
 use std::{thread, time};
-
 
 fn main() {
     let mut sensor = SCD30::new().unwrap();
@@ -18,14 +16,12 @@ fn main() {
         thread::sleep(time::Duration::from_millis(200));
     }
 
-
     let temperature = sensor.temperature().unwrap();
     let co2 = sensor.co2().unwrap();
     let humidity = sensor.humidity().unwrap();
 
     println!(
         "co2 = {:.0} ppm, temp = {:.2} °C, humidity = {:.0} %",
-       co2, temperature, humidity
+        co2, temperature, humidity
     );
-
 }
