@@ -8,7 +8,7 @@ repository = "https://github.com/crisobal/scd30pi"
 readme = "Readme.md"
 license = "MIT"
 categories = ["embedded", "hardware-support"]
-keywords = ["raspberry", "pi", "co2", "sensor", "temperature", "humidity", "i2c"]
+keywords = ["raspberry", "co2", "scd30", "i2c"]
 
 [dependencies]
 rppal = "0.11.3"
