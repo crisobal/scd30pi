@@ -345,6 +345,7 @@ impl SCD30 {
     }
 }
 
+/// Prepares a command buffer
 pub fn prepare_cmd(command: u16) -> Vec<u8> {
     let mut res_buf = Vec::<u8>::with_capacity(2);
     res_buf.push((command >> 8) as u8);
@@ -352,11 +353,15 @@ pub fn prepare_cmd(command: u16) -> Vec<u8> {
     res_buf
 }
 
+/// Prepares a command buffer including an argument word
 pub fn prepare_cmd_with_args(command: u16, arguments: u16) -> Vec<u8> {
     let arg_buffer = [(arguments >> 8) as u8, (arguments & 0xff) as u8];
     prepare_cmd_with_buf(command, &arg_buffer, true)
 }
 
+
+/// Prepare a command with a whole byte buffer. You can indicate whether you
+/// want to create a crc or not
 pub fn prepare_cmd_with_buf(command: u16, buf: &[u8], with_crc: bool) -> Vec<u8> {
     let mut res_buf = Vec::<u8>::with_capacity(buf.len() + 3);
     res_buf.push((command >> 8) as u8);
@@ -370,6 +375,7 @@ pub fn prepare_cmd_with_buf(command: u16, buf: &[u8], with_crc: bool) -> Vec<u8>
     res_buf
 }
 
+/// decodes the measurement value from the received 8 bytes
 pub fn decode_measure_value_to_u32(data: &[u8]) -> Result<f32, Error> {
     if calculate_crc8(&data[0..3]) == 0 && calculate_crc8(&data[3..6]) == 0 {
         let mut val: u32 = data[0] as u32;
