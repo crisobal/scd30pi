@@ -49,6 +49,7 @@ pub enum Error {
     NotImplemented,
 }
 
+/// Display the error codes
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -68,20 +69,30 @@ impl From<rppal::i2c::Error> for Error {
     }
 }
 
+/// Structo encapsulating all the data required for the scd30 sensor
 pub struct SCD30 {
+    /// poll intervall in seconds
     interval_in_s: u16,
+    /// i2c base handler
     i2c: I2c,
+    /// last read temperature value in °C
     temperature: f32,
+    /// last read humidity in %
     humidity: f32,
+    /// last read co2 value in ppm
     co2: f32,
+    /// timestamp of last read from the device
     last_read_time: Option<Instant>,
 }
 
 impl SCD30 {
+    /// creates a new sensor with the default I2C address 0x61
     pub fn new() -> Result<SCD30, Error> {
         SCD30::from_slave_address(0x61) // 0x61
     }
 
+    /// Generates the sensor from an arbitrary slave address
+    ///
     pub fn from_slave_address(slave_address: u16) -> Result<SCD30, Error> {
         let res = I2c::new();
         match res {
@@ -105,6 +116,7 @@ impl SCD30 {
         }
     }
 
+    /// Reads the I2C bus speed
     pub fn get_bus_speed(&mut self) -> Result<u32, Error> {
         match self.i2c.clock_speed() {
             Ok(s) => Ok(s),
@@ -112,23 +124,27 @@ impl SCD30 {
         }
     }
 
+    /// Sets the measure interval in seconds. The sensor default interval is 2s.
     pub fn set_measure_interval(&mut self, interval_seconds: u16) -> Result<(), Error> {
         self.interval_in_s = interval_seconds;
         let _res = self.send_cmd_with_args(CMD_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
         Ok(())
     }
 
+    /// Reads the sensor firmware version.
     pub fn read_firmware_version(&mut self) -> Result<String, Error> {
         let res = self.read_u16_with_crc(CMD_GET_FIRMWARE_VERSION)?;
         Ok(format!("{}.{}", (res >> 8), (res & 0xff)))
     }
 
+    /// Reads the currently set measurement interval in seconds
     pub fn read_measure_interval(&mut self) -> Result<u16, Error> {
         let res = self.read_u16_with_crc(CMD_SET_MEASUREMENT_INTERVAL)?;
         self.interval_in_s = res;
         Ok(res)
     }
 
+    /// Reads the measurement values temperature, humidity and CO2 concentration from the sensor
     pub fn read_measure(&mut self) -> Result<u16, Error> {
         if self.last_read_time == None
             || self.last_read_time.unwrap().elapsed().as_secs() > self.interval_in_s as u64
@@ -157,67 +173,83 @@ impl SCD30 {
         Ok(0)
     }
 
+    /// Gets the temperature in degree Celsius. If the value is older than measure interval, it reads the value from
+    /// the sensor.
     pub fn temperature(&mut self) -> Result<f32, Error> {
         self.read_measure()?;
         Ok(self.temperature)
     }
 
+    /// Gets the humidity in percent. If the value is older than measure interval, it reads the value from
+    /// the sensor.
     pub fn humidity(&mut self) -> Result<f32, Error> {
         self.read_measure()?;
         Ok(self.humidity)
     }
 
+    /// Gets the CO2 concentration in ppm. If the value is older than measure interval, it reads the value from
+    /// the sensor.
     pub fn co2(&mut self) -> Result<f32, Error> {
         self.read_measure()?;
         Ok(self.co2)
     }
 
+    /// Enables the sensor self calibration mechanism. See also sensor documentation
     pub fn enable_self_calibration(&mut self) -> Result<(), Error> {
         let _res = self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 1)?;
         Ok(())
     }
 
+    /// Disables the sensor self calibration. See also sensor documentation.
     pub fn disable_self_calibration(&mut self) -> Result<(), Error> {
         let _res = self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 0)?;
         Ok(())
     }
 
+    /// Sets the altitude compensation in meters above sea level.
     pub fn set_altitude_compensation(&mut self, altitude_mum: u16) -> Result<(), Error> {
         let _res = self.send_cmd_with_args(CMD_SET_ALTITUDE_COMPENSATION, altitude_mum)?;
         Ok(())
     }
 
+    /// Force sensor recalibration based on the given CO2 concentration.
     pub fn set_forced_recalibration(&mut self, real_co2_ppm: u16) -> Result<(), Error> {
         let _res = self.send_cmd_with_args(CMD_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
         Ok(())
     }
 
+    /// Sets a temperature offset to compensate heat from a nearby device.
     pub fn set_temperature_offset(&mut self, temp: f32) -> Result<(), Error> {
         let ticks = (temp * 100f32) as u16;
         let _res = self.send_cmd_with_args(CMD_SET_TEMPERATURE_OFFSET, ticks)?;
         Ok(())
     }
 
+    /// Starts the measurement in the sensor based on the given altitude compensation in millibar.
     pub fn start_with_alt_comp(&mut self, pressure_mbar: u16) -> Result<(), Error> {
         let _res = self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
         Ok(())
     }
 
+    /// Starts the measurement in the sensor.
     pub fn start(&mut self) -> Result<(), Error> {
         let _res = self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, 0)?;
         Ok(())
     }
 
+    /// Stops the sensor
     pub fn stop(&mut self) -> Result<(), Error> {
         let _res = self.send_cmd(CMD_STOP_CONTINUOUS_MEASUREMENT)?;
         Ok(())
     }
 
+    /// Soft reset the sensor
     pub fn soft_reset(&mut self) -> Result<(), Error> {
         let _res = self.send_cmd(CMD_RESET)?;
         Ok(())
     }
 
+    /// True if there is new measurement data to read from the sensor.
     pub fn data_available(&mut self) -> Result<bool, Error> {
         let res = self.read_u16_with_crc(CMD_GET_DATA_READY)?;
         match res {
@@ -226,6 +258,7 @@ impl SCD30 {
         }
     }
 
+    /// Sends a command to the sensor. The SCS30 uses word commands. See also sensor specification.
     fn send_cmd(&mut self, command: u16) -> Result<(), Error> {
         let buf = prepare_cmd(command);
 
@@ -235,6 +268,7 @@ impl SCD30 {
         }
     }
 
+    /// Sends a command to the sensor including a word argument.
     fn send_cmd_with_args(&mut self, command: u16, arguments: u16) -> Result<(), Error> {
         let buf = prepare_cmd_with_args(command, arguments);
         match self.i2c.write(&buf) {
@@ -244,6 +278,7 @@ impl SCD30 {
     }
 
     #[allow(dead_code)]
+    /// Reads a word from the indicate from which service/register the result comes.
     fn read_u16(&mut self, command: u16) -> Result<u16, Error> {
         self.send_cmd(command)?;
 
@@ -267,6 +302,8 @@ impl SCD30 {
         Ok(response)
     }
 
+    /// Reads a word from the indicate from which service/register the result comes.
+    /// The request is protected by CRC8.
     fn read_u16_with_crc(&mut self, command: u16) -> Result<u16, Error> {
         self.send_cmd(command)?;
 
@@ -293,6 +330,7 @@ impl SCD30 {
         Ok(response)
     }
 
+    /// Reads data from a sensor service/register to out buffer.
     fn read_data(&mut self, command: u16, out_buf: &mut [u8]) -> Result<usize, Error> {
         self.send_cmd(command)?;
 
@@ -306,21 +344,6 @@ impl SCD30 {
         }
     }
 }
-
-/*
-          Name:  CRC-8
-Protected Data: read data
-         Width: 8 bits
-    Polynomial: 0x31 (x⁸ + x⁵ + x⁴ + x⁰)
-Initialization: 0xFF
- Reflect Input: false
-Reflect Output: false
-     Final XOR: 0x00
-       Example: CRC(0xBEEF) = 0x92
-          From: http://www.sunshine2k.de/articles/coding/crc/understanding_crc.html
-   Tested with: http://www.sunshine2k.de/coding/javascript/crc/crc_js.html
-
-*/
 
 pub fn prepare_cmd(command: u16) -> Vec<u8> {
     let mut res_buf = Vec::<u8>::with_capacity(2);
@@ -362,6 +385,16 @@ pub fn decode_measure_value_to_u32(data: &[u8]) -> Result<f32, Error> {
     }
 }
 
+/// Calculates a CRC-8 with following attributes:
+///   - Polynomial: 0x31 (x⁸ + x⁵ + x⁴ + x⁰)
+///   - Initialization: 0xFF
+///   - Reflect Input: false
+///   - Reflect Output: false
+///   - Final XOR: 0x00
+///   - Example: CRC(0xBEEF) = 0x92
+///   - From: [Understanding CRC](http://www.sunshine2k.de/articles/coding/crc/understanding_crc.html)
+///   - Tested with: [Tested with](http://www.sunshine2k.de/coding/javascript/crc/crc_js.html)
+///
 pub fn calculate_crc8(data: &[u8]) -> u8 {
     let mut crc: u8 = 0xff;
     for b in data {

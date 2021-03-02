@@ -1,7 +1,7 @@
 [package]
 name = "scd30pi"
-version = "0.3.2"
-authors = ["Crispin Tschirky <crispin@tschirky.ch"]
+version = "0.4.0"
+authors = ["Crispin Tschirky <ct@fhr.ch>"]
 edition = "2018"
 description = "Interfaces the i2c co2, temp and humidity sensor from Sensirion for rPi"
 repository = "https://github.com/crisobal/scd30pi"
