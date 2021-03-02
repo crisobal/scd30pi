@@ -4,6 +4,11 @@ CO2 Sensor SCD30 for Rust
 This yet another implementation of a client for the Sensirion i2c sensor in 
 pure rust.
 
+It is based on Raspberry Pi Peripheral Access Library (https://crates.io/crates/rppal).
+
+The sensor documentation can be obtained directly from Sensition: 
+https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/9.5_CO2/Sensirion_CO2_Sensors_SCD30_Interface_Description.pdf
+
 Please take in account that this is my first project in Rust since reading the book so it might be not as rusty
 as it should be as my Java and C++ background breaks influenced my code non negligible. 
 
