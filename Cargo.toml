@@ -1,0 +1,15 @@
+[package]
+name = "scd30pi"
+version = "0.2.0"
+authors = ["Crispin Tschirky <crispin@tschirky.ch"]
+edition = "2018"
+description = "Interfaces the i2c co2, temp and humidity sensor from Sensirion for rPi"
+repository = "https://github.com/crisobal/scd30pi"
+readme = "Readme.md"
+license = "MIT"
+categories = ["embedded", "hardware-support"]
+keywords = ["raspberry", "pi", "co2", "sensor", "temperature", "humidity", "i2c"]
+
+[dependencies]
+rppal = "0.11.3"
+log = "0.4"
