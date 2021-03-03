@@ -1,19 +1,18 @@
 CO2 Sensor SCD30 for Rust
 =========================
 
-This yet another implementation of a client for the Sensirion i2c sensor in 
-pure rust.
+This is yet another implementation of a Sensirion SCD30 i2c sensor driver in 
+pure rust. The sensor measures CO2, temperature and humidity.
 
-It is based on Raspberry Pi Peripheral Access Library (https://crates.io/crates/rppal).
-
-The sensor documentation can be obtained directly from Sensition: 
+The sensor documentation can be obtained directly from Sensirion: 
 https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/9.5_CO2/Sensirion_CO2_Sensors_SCD30_Interface_Description.pdf
 
-Please take in account that this is my first project in Rust since reading the book so it might be not as rusty
-as it should be as my Java and C++ background breaks influenced my code non negligible. 
+Please take in account that this is my first project in Rust since reading the book so it might not be as rusty
+as it should be as my Java and C++ background influenced my code non negligible. 
 
 The target platform is a Raspberry pi so either you compile it on an rpi or use crosscompiling.
-The SCD30 connection to i2c can be done by adding the device to the first i2c ports of the GPIO
+It is based on Raspberry Pi Peripheral Access Library (https://crates.io/crates/rppal). The 
+physical SCD30 connection to i2c can be done by wiring the device to the first i2c ports of the GPIO
 connector.
 
 Connect to RaspberryPi GPIO:
@@ -32,7 +31,6 @@ Cross Compile
   following variables prior to use cargo to cross compile:
 
   `export CC_armv7_unknown_linux_gnueabihf=arm-none-linux-gnueabihf-gcc`
-
   `export PATH=${TARGET_DIR}/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/bin:$PATH`
 
 - Install rust cross compile target.
@@ -41,9 +39,9 @@ Cross Compile
 
 - Configure cargo for the cross compiler target. Add following to `~/.cargo/config`
 
-  [target.armv7-unknown-linux-gnueabihf]
+  `[target.armv7-unknown-linux-gnueabihf]`
 
-  linker = "arm-linux-gnueabihf-gcc"`
+  `linker = "arm-linux-gnueabihf-gcc"`
 
 Copile using:
 
