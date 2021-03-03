@@ -30,19 +30,18 @@ Cross Compile
   you can unpack the content to the directory of your choice. Assume it is `TARGET_DIR` then export
   following variables prior to use cargo to cross compile:
 
-
-  export CC_armv7_unknown_linux_gnueabihf=arm-none-linux-gnueabihf-gcc
-  export PATH=${TARGET_DIR}/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/bin:$PATH
+  `export CC_armv7_unknown_linux_gnueabihf=arm-none-linux-gnueabihf-gcc`
+  `export PATH=${TARGET_DIR}/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/bin:$PATH`
 
 - Install rust cross compile target.
 
-  rustup target add armv7-unknown-linux-gnueabihf
+  `rustup target add armv7-unknown-linux-gnueabihf`
 
 - Configure cargo for the cross compiler target. Add following to `~/.cargo/config`
 
-  [target.armv7-unknown-linux-gnueabihf]
+  `[target.armv7-unknown-linux-gnueabihf]`
 
-  linker = "arm-linux-gnueabihf-gcc"`
+  `linker = "arm-linux-gnueabihf-gcc"`
 
 Copile using:
 
