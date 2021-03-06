@@ -92,7 +92,7 @@ impl SCD30 {
     }
 
     /// Generates the sensor from an arbitrary slave address
-    ///
+    /// the default address is 0x61
     pub fn from_slave_address(slave_address: u16) -> Result<SCD30, Error> {
         let res = I2c::new();
         match res {
