@@ -42,7 +42,7 @@ SOFTWARE.
 //!
 //! # Examples
 //!
-//!  ```
+//!  ```no_run
 //! use scd30pi::i2c::SCD30;
 //! use std::{thread, time};
 //!
