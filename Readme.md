@@ -7,9 +7,6 @@ pure rust. The sensor measures CO2, temperature and humidity.
 The sensor documentation can be obtained directly from Sensirion: 
 https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/9.5_CO2/Sensirion_CO2_Sensors_SCD30_Interface_Description.pdf
 
-Please take in account that this is my first project in Rust since reading the book so it might not be as rusty
-as it should be as my Java and C++ background influenced my code non negligible. 
-
 The target platform is a Raspberry pi so either you compile it on an rpi or use crosscompiling.
 It is based on Raspberry Pi Peripheral Access Library (https://crates.io/crates/rppal). The 
 physical SCD30 connection to i2c can be done by wiring the device to the first i2c ports of the GPIO
