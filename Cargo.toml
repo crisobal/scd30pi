@@ -1,6 +1,6 @@
 [package]
 name = "scd30pi"
-version = "1.0.0"
+version = "1.0.1-beta"
 authors = ["Crispin Tschirky <ct@fhr.ch>"]
 edition = "2024"
 description = "Interfaces the SCD30 i2c CO2, temperature and humidity sensor from Sensirion for Raspberry Pi"
