@@ -47,7 +47,7 @@ SOFTWARE.
 //! use std::{thread, time};
 //!
 //! fn main() {
-//!     let mut sensor = SCD30::new().unwrap();
+//!     let mut sensor = SCD30::from_default_device().unwrap();
 //!     let speed = sensor.get_bus_speed().unwrap();
 //!     println!("bus Speed: {}", speed);
 //!

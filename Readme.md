@@ -26,7 +26,7 @@ use scd30pi::i2c::SCD30;
 use std::{thread, time};
 
 fn main() {
-    let mut sensor = SCD30::new().unwrap();
+    let mut sensor = SCD30::from_default_device().unwrap();
     let speed = sensor.get_bus_speed().unwrap();
     println!("bus Speed: {}", speed);
 
@@ -55,27 +55,5 @@ fn main() {
 Cross Compile
 -------------
 
-- **Install the arm cross compiler.** You can find the crosscompiler on
-  https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-a/downloads
-  you can unpack the content to the directory of your choice. Assume it is `TARGET_DIR` then export
-  following variables prior to use cargo to cross compile:
-
-  `export CC_armv7_unknown_linux_gnueabihf=arm-none-linux-gnueabihf-gcc`
-  `export PATH=${TARGET_DIR}/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/bin:$PATH`
-
-- Install rust cross compile target.
-
-  `rustup target add armv7-unknown-linux-gnueabihf`
-
-- Configure cargo for the cross compiler target. Add following to `~/.cargo/config`
-
-  `[target.armv7-unknown-linux-gnueabihf]`
-
-  `linker = "arm-linux-gnueabihf-gcc"`
-
-Copile using:
-
-`cargo build --target=armv7-unknown-linux-gnueabihf --release`
-
-Additional resources about cross compiling can be found at https://github.com/japaric/rust-cross
-
+- Install cross-rs (Getting started: https://github.com/cross-rs/cross/blob/main/docs/getting-started.md)
+- compile using: `cross build --target=aarch64-unknown-linux-gnu --release`

@@ -24,7 +24,6 @@ SOFTWARE.
 
 use log::{debug, trace};
 use rppal::i2c::I2c;
-use std::f32::NAN;
 use std::result::Result;
 use std::time::Instant;
 use std::{error, fmt, thread, time};
@@ -69,7 +68,7 @@ impl From<rppal::i2c::Error> for Error {
     }
 }
 
-/// Structo encapsulating all the data required for the scd30 sensor
+/// Struct encapsulating all the data required for the scd30 sensor
 pub struct SCD30 {
     /// poll intervall in seconds
     interval_in_s: u16,
@@ -87,24 +86,30 @@ pub struct SCD30 {
 
 impl SCD30 {
     /// creates a new sensor with the default I2C address 0x61
-    pub fn new() -> Result<SCD30, Error> {
-        SCD30::from_slave_address(0x61) // 0x61
+    pub fn from_default_device() -> Result<SCD30, Error> {
+        SCD30::from_device_address(0x61) // 0x61
     }
 
-    /// Generates the sensor from an arbitrary slave address
+    /// creates a new sensor with the default I2C address 0x61
+    #[deprecated(since = "1.0.0", note = "please use `from_default_device()` instead")]
+    pub fn new() -> Result<SCD30, Error> {
+        SCD30::from_default_device() // 0x61
+    }
+
+    /// Generates the sensor from an arbitrary device address
     /// the default address is 0x61
-    pub fn from_slave_address(slave_address: u16) -> Result<SCD30, Error> {
+    pub fn from_device_address(device_address: u16) -> Result<SCD30, Error> {
         let res = I2c::new();
         match res {
-            Ok(mut an_i2c) => match an_i2c.set_slave_address(slave_address) {
+            Ok(mut an_i2c) => match an_i2c.set_slave_address(device_address) {
                 Err(e) => Err(Error::from(e)),
                 Ok(_) => {
                     let mut sensor = SCD30 {
                         i2c: an_i2c,
                         interval_in_s: 2,
-                        temperature: NAN,
-                        humidity: NAN,
-                        co2: NAN,
+                        temperature: f32::NAN,
+                        humidity: f32::NAN,
+                        co2: f32::NAN,
                         last_read_time: None,
                     };
                     let _ = sensor.read_measure_interval()?;
@@ -127,7 +132,7 @@ impl SCD30 {
     /// Sets the measure interval in seconds. The sensor default interval is 2s.
     pub fn set_measure_interval(&mut self, interval_seconds: u16) -> Result<(), Error> {
         self.interval_in_s = interval_seconds;
-        let _res = self.send_cmd_with_args(CMD_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
+        self.send_cmd_with_args(CMD_SET_MEASUREMENT_INTERVAL, interval_seconds)?;
         Ok(())
     }
 
@@ -146,29 +151,28 @@ impl SCD30 {
 
     /// Reads the measurement values temperature, humidity and CO2 concentration from the sensor
     pub fn read_measure(&mut self) -> Result<u16, Error> {
-        if self.last_read_time == None
-            || self.last_read_time.unwrap().elapsed().as_secs() > self.interval_in_s as u64
+        if (self.last_read_time.is_none()
+            || self.last_read_time.unwrap().elapsed().as_secs() > self.interval_in_s as u64)
+            && self.data_available()?
         {
-            if self.data_available()? {
-                let mut buf = [0u8; 18];
-                let res = self.read_data(CMD_GET_MEASUREMENT, &mut buf)?;
-                if res != 18 {
-                    return Err(Error::NoData("Expected 18 bytes of data".to_string()));
-                }
-                trace!("Got {} bytes of measure data: {:x?}", res, buf);
-
-                self.co2 = decode_measure_value_to_u32(&buf[0..6])?;
-                self.temperature = decode_measure_value_to_u32(&buf[6..12])?;
-                self.humidity = decode_measure_value_to_u32(&buf[12..18])?;
-
-                debug!(
-                    "co2 = {:.0} ppm, temp = {:.2} °C, humidity = {:.0} %",
-                    self.co2, self.temperature, self.humidity
-                );
-
-                self.last_read_time = Some(Instant::now());
-                return Ok(res as u16);
+            let mut buf = [0u8; 18];
+            let res = self.read_data(CMD_GET_MEASUREMENT, &mut buf)?;
+            if res != 18 {
+                return Err(Error::NoData("Expected 18 bytes of data".to_string()));
             }
+            trace!("Got {} bytes of measure data: {:x?}", res, buf);
+
+            self.co2 = decode_measure_value_to_u32(&buf[0..6])?;
+            self.temperature = decode_measure_value_to_u32(&buf[6..12])?;
+            self.humidity = decode_measure_value_to_u32(&buf[12..18])?;
+
+            debug!(
+                "co2 = {:.0} ppm, temp = {:.2} °C, humidity = {:.0} %",
+                self.co2, self.temperature, self.humidity
+            );
+
+            self.last_read_time = Some(Instant::now());
+            return Ok(res as u16);
         }
         Ok(0)
     }
@@ -196,56 +200,57 @@ impl SCD30 {
 
     /// Enables the sensor self calibration mechanism. See also sensor documentation
     pub fn enable_self_calibration(&mut self) -> Result<(), Error> {
-        let _res = self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 1)?;
+        self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 1)?;
         Ok(())
     }
 
     /// Disables the sensor self calibration. See also sensor documentation.
     pub fn disable_self_calibration(&mut self) -> Result<(), Error> {
-        let _res = self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 0)?;
+        self.send_cmd_with_args(CMD_AUTOMATIC_SELF_CALIBRATION, 0)?;
         Ok(())
     }
 
     /// Sets the altitude compensation in meters above sea level.
     pub fn set_altitude_compensation(&mut self, altitude_mum: u16) -> Result<(), Error> {
-        let _res = self.send_cmd_with_args(CMD_SET_ALTITUDE_COMPENSATION, altitude_mum)?;
+        self.send_cmd_with_args(CMD_SET_ALTITUDE_COMPENSATION, altitude_mum)?;
         Ok(())
     }
 
     /// Force sensor recalibration based on the given CO2 concentration.
     pub fn set_forced_recalibration(&mut self, real_co2_ppm: u16) -> Result<(), Error> {
-        let _res = self.send_cmd_with_args(CMD_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
+        self.send_cmd_with_args(CMD_SET_FORCED_RECALIBRATION_FACTOR, real_co2_ppm)?;
         Ok(())
     }
 
     /// Sets a temperature offset to compensate heat from a nearby device.
+    ///
     pub fn set_temperature_offset(&mut self, temp: f32) -> Result<(), Error> {
         let ticks = (temp * 100f32) as u16;
-        let _res = self.send_cmd_with_args(CMD_SET_TEMPERATURE_OFFSET, ticks)?;
+        self.send_cmd_with_args(CMD_SET_TEMPERATURE_OFFSET, ticks)?;
         Ok(())
     }
 
     /// Starts the measurement in the sensor based on the given altitude compensation in millibar.
     pub fn start_with_alt_comp(&mut self, pressure_mbar: u16) -> Result<(), Error> {
-        let _res = self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
+        self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, pressure_mbar)?;
         Ok(())
     }
 
     /// Starts the measurement in the sensor.
     pub fn start(&mut self) -> Result<(), Error> {
-        let _res = self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, 0)?;
+        self.send_cmd_with_args(CMD_START_CONTINUOUS_MEASUREMENT, 0)?;
         Ok(())
     }
 
     /// Stops the sensor
     pub fn stop(&mut self) -> Result<(), Error> {
-        let _res = self.send_cmd(CMD_STOP_CONTINUOUS_MEASUREMENT)?;
+        self.send_cmd(CMD_STOP_CONTINUOUS_MEASUREMENT)?;
         Ok(())
     }
 
     /// Soft reset the sensor
     pub fn soft_reset(&mut self) -> Result<(), Error> {
-        let _res = self.send_cmd(CMD_RESET)?;
+        self.send_cmd(CMD_RESET)?;
         Ok(())
     }
 
@@ -297,7 +302,7 @@ impl SCD30 {
                 }
             }
         }
-        let response: u16 = ((rcv_buf[0] as u16) << 8) as u16 + rcv_buf[1] as u16;
+        let response: u16 = ((rcv_buf[0] as u16) << 8) + rcv_buf[1] as u16;
         trace!("Read {} raw {:x?}", response, rcv_buf);
         Ok(response)
     }
@@ -325,7 +330,7 @@ impl SCD30 {
         if calculate_crc8(&rcv_buf) != 0 {
             return Err(Error::CrcError("Invalid in result word".to_string()));
         }
-        let response: u16 = ((rcv_buf[0] as u16) << 8) as u16 + rcv_buf[1] as u16;
+        let response: u16 = ((rcv_buf[0] as u16)  << 8) + rcv_buf[1] as u16;
         trace!("Read {} raw {:#x?}", response, rcv_buf);
         Ok(response)
     }
@@ -347,9 +352,7 @@ impl SCD30 {
 
 /// Prepares a command buffer
 pub fn prepare_cmd(command: u16) -> Vec<u8> {
-    let mut res_buf = Vec::<u8>::with_capacity(2);
-    res_buf.push((command >> 8) as u8);
-    res_buf.push((command & 0xff) as u8);
+    let res_buf = vec![(command >> 8) as u8, (command & 0xff) as u8];
     res_buf
 }
 
@@ -359,7 +362,6 @@ pub fn prepare_cmd_with_args(command: u16, arguments: u16) -> Vec<u8> {
     prepare_cmd_with_buf(command, &arg_buffer, true)
 }
 
-
 /// Prepare a command with a whole byte buffer. You can indicate whether you
 /// want to create a crc or not
 pub fn prepare_cmd_with_buf(command: u16, buf: &[u8], with_crc: bool) -> Vec<u8> {
@@ -368,7 +370,7 @@ pub fn prepare_cmd_with_buf(command: u16, buf: &[u8], with_crc: bool) -> Vec<u8>
     res_buf.push((command & 0xff) as u8);
     res_buf.extend_from_slice(buf);
 
-    if with_crc && buf.len() > 0 {
+    if with_crc && !buf.is_empty() {
         res_buf.push(calculate_crc8(buf));
     }
     trace!("Buf for cmd 0x{:0x} : {:0x?}", command, res_buf);
